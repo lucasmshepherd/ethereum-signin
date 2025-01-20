@@ -3,8 +3,29 @@ import { ethers } from "ethers";
 let connectedSigner = null;
 
 window.wagmiWallet = {
+  // Detect available wallets
+  detectWallets: async () => {
+    const wallets = [];
+    if (window.ethereum?.isMetaMask) {
+      wallets.push("MetaMask");
+    }
+    if (window.ethereum?.isCoinbaseWallet) {
+      wallets.push("Coinbase Wallet");
+    }
+    if (wallets.length === 0 && window.ethereum) {
+      wallets.push("Default Ethereum Wallet"); // Generic Ethereum provider
+    }
+
+    if (wallets.length === 0) {
+      console.warn("No wallets detected.");
+    } else {
+      console.log("Detected wallets:", wallets);
+    }
+    return wallets;
+  },
+
   // Connect to a wallet and store the signer
-  connectWallet: async () => {
+  connectWallet: async (walletName = "Default Ethereum Wallet") => {
     try {
       if (!window.ethereum) {
         throw new Error(
@@ -16,10 +37,10 @@ window.wagmiWallet = {
       await ethersProvider.send("eth_requestAccounts", []); // Prompt user to connect wallet
       connectedSigner = await ethersProvider.getSigner(); // Retrieve the signer
       const address = await connectedSigner.getAddress(); // Get wallet address
-      console.log("Connected wallet address:", address);
+      console.log(`Connected wallet (${walletName}):`, address);
       return address;
     } catch (err) {
-      console.error("Wallet connection failed:", err.message);
+      console.error(`Wallet connection failed (${walletName}):`, err.message);
       throw err;
     }
   },
@@ -33,7 +54,6 @@ window.wagmiWallet = {
     if (typeof message !== "string" || !message.trim()) {
       throw new Error("Invalid message. Please provide a non-empty string.");
     }
-
 
     console.log("Signer object:", connectedSigner); // Debug: Log the signer object
 
