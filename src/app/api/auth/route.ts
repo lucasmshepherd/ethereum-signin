@@ -7,7 +7,7 @@ import type { IncomingMessage, ServerResponse } from "http";
 // Initialize CORS middleware
 const cors = Cors({
   methods: ["POST"],
-  origin: "https://preview.construct.net", // Replace with your actual origin
+  origin: ["https://preview.construct.net", "http://localhost:3000"], // Add all allowed origins here
 });
 
 // Helper function to run middleware
