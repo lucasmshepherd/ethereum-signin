@@ -31,6 +31,18 @@ async function runMiddleware(
   });
 }
 
+// Handle preflight requests
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "https://preview.construct.net",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    },
+  });
+}
+
 // POST method for App Directory
 export async function POST(req: Request) {
   try {
@@ -69,17 +81,29 @@ export async function POST(req: Request) {
       .auth()
       .createCustomToken(address.toLowerCase());
 
-    return NextResponse.json({ token: customToken }, { status: 200 });
+    return new Response(JSON.stringify({ token: customToken }), {
+      status: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "https://preview.construct.net",
+      },
+    });
   } catch (error: unknown) {
-    console.error("Error processing request:", error);
-
     if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "https://preview.construct.net",
+        },
+      });
     }
-
-    return NextResponse.json(
-      { error: "Unknown error occurred" },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ error: "An unknown error occurred" }),
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "https://preview.construct.net",
+        },
+      }
     );
   }
 }
