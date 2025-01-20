@@ -1,35 +1,85 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { verifyMessage } from "ethers";
 import { firebaseAdmin } from "@/lib/firebaseAdmin";
+import Cors from "cors";
+import type { IncomingMessage, ServerResponse } from "http";
 
-export async function POST(req: NextRequest) {
+// Initialize CORS middleware
+const cors = Cors({
+  methods: ["POST"],
+  origin: "https://preview.construct.net", // Replace with your actual origin
+});
+
+// Helper function to run middleware
+async function runMiddleware(
+  req: IncomingMessage,
+  res: ServerResponse,
+  fn: (
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: (err?: Error | undefined) => void
+  ) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    fn(req, res, (result?: Error | undefined) => {
+      if (result) {
+        reject(result);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+// POST method for App Directory
+export async function POST(req: Request) {
   try {
-    // parse body
-    const { address, signature, nonce } = await req.json();
+    const res = NextResponse.next();
 
-    if (!address || !signature || !nonce) {
-      return NextResponse.json({ error: "missing params" }, { status: 400 });
+    // Run the CORS middleware
+    await runMiddleware(
+      req as unknown as IncomingMessage,
+      res as unknown as ServerResponse,
+      cors
+    );
+
+    // Parse the request body
+    const body: { address?: string; signature?: string; nonce?: string } =
+      await req.json();
+
+    if (!body.address || !body.signature || !body.nonce) {
+      return NextResponse.json(
+        { error: "Missing required parameters" },
+        { status: 400 }
+      );
     }
 
-    // build msg to sign
-    const message = `please sign this nonce: ${nonce}`;
+    const { address, signature, nonce } = body;
 
-    // recover signer's address from signature
-    const recoveredAddr = verifyMessage(message, signature);
+    // Verify the message
+    const message = `Please sign this nonce: ${nonce}`;
+    const recoveredAddress = verifyMessage(message, signature);
 
-    // check if recovered address matches address in body
-    if (recoveredAddr.toLowerCase() !== address.toLowerCase()) {
-      return NextResponse.json({ error: "invalid signature" }, { status: 401 });
+    if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    // create firebase custom token w/ wallet address as uid
+    // Generate a Firebase custom token
     const customToken = await firebaseAdmin
       .auth()
       .createCustomToken(address.toLowerCase());
 
     return NextResponse.json({ token: customToken }, { status: 200 });
-  } catch (err: unknown) {
-    console.error("error verifying signature", err);
-    return NextResponse.json({ error: "server error" }, { status: 500 }); 
+  } catch (error: unknown) {
+    console.error("Error processing request:", error);
+
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(
+      { error: "Unknown error occurred" },
+      { status: 500 }
+    );
   }
 }

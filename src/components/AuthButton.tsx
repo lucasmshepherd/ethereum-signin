@@ -18,7 +18,7 @@ export default function AuthButton() {
       // ensure wallet is available
       if (!window.ethereum) {
         setError("no wallet found, install metamask");
-        return; 
+        return;
       }
 
       // connect to metamask
@@ -51,8 +51,12 @@ export default function AuthButton() {
       // use the firebase custom token to sign in
       await signInWithCustomToken(firebaseAuth, token);
       setWalletAddress(address);
-    } catch (err: any) {
-      setError(err.message || "unknown error");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || "unknown error");
+      } else {
+        setError("unknown error");
+      }
     } finally {
       setLoading(false);
     }
