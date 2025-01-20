@@ -1,71 +1,48 @@
 import { ethers } from "ethers";
 
-// Store wallet state
 let connectedSigner = null;
-let connectedAddress = null;
 
-// Expose wallet functions
 window.wagmiWallet = {
-  // Detect available wallets
-  detectWallets: async () => {
-    const wallets = [];
-
-    if (typeof window.ethereum !== "undefined") {
-      if (window.ethereum.isMetaMask) wallets.push("MetaMask");
-      if (window.ethereum.isCoinbaseWallet) wallets.push("Coinbase Wallet");
-      if (!window.ethereum.isMetaMask && !window.ethereum.isCoinbaseWallet) {
-        wallets.push("Generic Wallet");
-      }
-    }
-
-    return wallets;
-  },
-
-  // Connect to a wallet
-  connectWallet: async (walletType) => {
-    if (walletType === "MetaMask" && (!window.ethereum || !window.ethereum.isMetaMask)) {
-      throw new Error("MetaMask is not installed.");
-    }
-
-    if (walletType === "Coinbase Wallet" && (!window.ethereum || !window.ethereum.isCoinbaseWallet)) {
-      throw new Error("Coinbase Wallet is not installed.");
-    }
-
-    if (!window.ethereum) {
-      throw new Error("No Ethereum wallet detected.");
-    }
-
+  // Connect to a wallet and store the signer
+  connectWallet: async () => {
     try {
-      const ethersProvider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await ethersProvider.send("eth_requestAccounts", []);
-      connectedAddress = accounts[0];
-      connectedSigner = ethersProvider.getSigner();
+      if (!window.ethereum) {
+        throw new Error(
+          "No Ethereum provider found. Install MetaMask or another wallet."
+        );
+      }
 
-      return connectedAddress;
+      const ethersProvider = new ethers.BrowserProvider(window.ethereum); // Ensure this is a BrowserProvider
+      await ethersProvider.send("eth_requestAccounts", []); // Prompt user to connect wallet
+      connectedSigner = await ethersProvider.getSigner(); // Retrieve the signer
+      const address = await connectedSigner.getAddress(); // Get wallet address
+      console.log("Connected wallet address:", address);
+      return address;
     } catch (err) {
-      console.error("Wallet connection failed:", err);
+      console.error("Wallet connection failed:", err.message);
       throw err;
     }
   },
 
-  // Sign a message
+  // Sign a message using the connected signer
   signMessage: async (message) => {
     if (!connectedSigner) {
-      throw new Error("Wallet not connected.");
+      throw new Error("Wallet not connected. Please connect first.");
     }
 
     try {
-      const signature = await connectedSigner.signMessage(message);
+      const signature = await connectedSigner.signMessage(message); // Use the signer to sign
+      console.log("Message signed successfully:", signature);
       return signature;
     } catch (err) {
-      console.error("Message signing failed:", err);
+      console.error("Message signing failed:", err.message);
       throw err;
     }
   },
 
-  // Disconnect the wallet
+  // Disconnect the wallet (optional, just resets the signer)
   disconnectWallet: () => {
     connectedSigner = null;
-    connectedAddress = null;
+    console.log("Wallet disconnected");
   },
 };
