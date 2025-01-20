@@ -30,9 +30,11 @@ window.wagmiWallet = {
       throw new Error("Wallet not connected. Please connect first.");
     }
 
+    console.log("Signer object:", connectedSigner); // Debug: Log the signer object
+
     try {
-      const signature = await connectedSigner.signMessage(message); // Use the signer to sign
-      console.log("Message signed successfully:", signature);
+      const signature = await connectedSigner.signMessage(message);
+      console.log("Message signed successfully:", signature); // Debug: Log the signature
       return signature;
     } catch (err) {
       console.error("Message signing failed:", err.message);
