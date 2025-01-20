@@ -1,42 +1,24 @@
-import { NextResponse } from "next/server";
 import { verifyMessage } from "ethers";
 import { firebaseAdmin } from "@/lib/firebaseAdmin";
-import Cors from "cors";
-import type { IncomingMessage, ServerResponse } from "http";
 
-// Initialize CORS middleware
-const cors = Cors({
-  methods: ["POST"],
-  origin: ["https://preview.construct.net", "http://localhost:3000"], // Add all allowed origins here
-});
+// List of allowed origins
+const allowedOrigins = [
+  "https://preview.construct.net",
+  "http://localhost:3000",
+];
 
-// Helper function to run middleware
-async function runMiddleware(
-  req: IncomingMessage,
-  res: ServerResponse,
-  fn: (
-    req: IncomingMessage,
-    res: ServerResponse,
-    next: (err?: Error | undefined) => void
-  ) => void
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    fn(req, res, (result?: Error | undefined) => {
-      if (result) {
-        reject(result);
-      } else {
-        resolve();
-      }
-    });
-  });
+// Helper to check and set the correct CORS origin
+function getCorsOrigin(origin: string | null): string {
+  return origin && allowedOrigins.includes(origin) ? origin : "";
 }
 
 // Handle preflight requests
-export async function OPTIONS() {
+export async function OPTIONS(req: Request) {
+  const origin = getCorsOrigin(req.headers.get("origin"));
   return new Response(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": "https://preview.construct.net",
+      "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     },
@@ -46,34 +28,36 @@ export async function OPTIONS() {
 // POST method for App Directory
 export async function POST(req: Request) {
   try {
-    const res = NextResponse.next();
-
-    // Run the CORS middleware
-    await runMiddleware(
-      req as unknown as IncomingMessage,
-      res as unknown as ServerResponse,
-      cors
-    );
+    const origin = getCorsOrigin(req.headers.get("origin"));
 
     // Parse the request body
-    const body: { address?: string; signature?: string; nonce?: string } =
-      await req.json();
+    const body = await req.json();
+    const { address, signature, nonce } = body;
 
-    if (!body.address || !body.signature || !body.nonce) {
-      return NextResponse.json(
-        { error: "Missing required parameters" },
-        { status: 400 }
+    // Validate the request body
+    if (!address || !signature || !nonce) {
+      return new Response(
+        JSON.stringify({ error: "Missing required parameters" }),
+        {
+          status: 400,
+          headers: {
+            "Access-Control-Allow-Origin": origin,
+          },
+        }
       );
     }
 
-    const { address, signature, nonce } = body;
-
-    // Verify the message
+    // Verify the signature
     const message = `Please sign this nonce: ${nonce}`;
     const recoveredAddress = verifyMessage(message, signature);
 
     if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+      return new Response(JSON.stringify({ error: "Invalid signature" }), {
+        status: 401,
+        headers: {
+          "Access-Control-Allow-Origin": origin,
+        },
+      });
     }
 
     // Generate a Firebase custom token
@@ -81,29 +65,21 @@ export async function POST(req: Request) {
       .auth()
       .createCustomToken(address.toLowerCase());
 
+    // Return the custom token
     return new Response(JSON.stringify({ token: customToken }), {
       status: 200,
       headers: {
-        "Access-Control-Allow-Origin": "https://preview.construct.net",
+        "Access-Control-Allow-Origin": origin,
       },
     });
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "https://preview.construct.net",
-        },
-      });
-    }
-    return new Response(
-      JSON.stringify({ error: "An unknown error occurred" }),
-      {
-        status: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "https://preview.construct.net",
-        },
-      }
-    );
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*", // Safe fallback for unknown errors
+      },
+    });
   }
 }
