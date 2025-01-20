@@ -30,6 +30,11 @@ window.wagmiWallet = {
       throw new Error("Wallet not connected. Please connect first.");
     }
 
+    if (typeof message !== "string" || !message.trim()) {
+      throw new Error("Invalid message. Please provide a non-empty string.");
+    }
+
+
     console.log("Signer object:", connectedSigner); // Debug: Log the signer object
 
     try {
