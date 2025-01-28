@@ -1,18 +1,18 @@
 import { verifyMessage } from "ethers";
 import { firebaseAdmin } from "@/lib/firebaseAdmin";
 
-// list of allowed origins
+// List of allowed origins
 const allowedOrigins = [
   "https://preview.construct.net",
   "http://localhost:3000",
 ];
 
-// helper to check and set the correct CORS origin
+// Helper to check and set the correct CORS origin
 function getCorsOrigin(origin: string | null): string {
   return origin && allowedOrigins.includes(origin) ? origin : "";
 }
 
-// handle preflight requests
+// Handle preflight requests
 export async function OPTIONS(req: Request) {
   const origin = getCorsOrigin(req.headers.get("origin"));
   return new Response(null, {
@@ -25,16 +25,16 @@ export async function OPTIONS(req: Request) {
   });
 }
 
-// post method for auth
+// POST method for App Directory
 export async function POST(req: Request) {
   try {
     const origin = getCorsOrigin(req.headers.get("origin"));
 
-    // parse the request body
+    // Parse the request body
     const body = await req.json();
     const { address, signature, nonce } = body;
 
-    // validate the request body
+    // Validate the request body
     if (!address || !signature || !nonce) {
       return new Response(
         JSON.stringify({ error: "Missing required parameters" }),
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // verify the signature
+    // Verify the signature
     const message = `Please sign this nonce: ${nonce}`;
     const recoveredAddress = verifyMessage(message, signature);
 
@@ -60,12 +60,12 @@ export async function POST(req: Request) {
       });
     }
 
-    // generate a firebase custom token
+    // Generate a Firebase custom token
     const customToken = await firebaseAdmin
       .auth()
       .createCustomToken(address.toLowerCase());
 
-    // return the custom token
+    // Return the custom token
     return new Response(JSON.stringify({ token: customToken }), {
       status: 200,
       headers: {
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: {
-        "Access-Control-Allow-Origin": "*", // safe fallback for unknown errors
+        "Access-Control-Allow-Origin": "*", // Safe fallback for unknown errors
       },
     });
   }
